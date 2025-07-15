@@ -4,22 +4,25 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-return new class extends Migration {
+return new class extends Migration
+{
     /**
      * Run the migrations.
      *
      * @return void
      */
-public function up()
+   public function up()
 {
-    Schema::create('albums', function (Blueprint $table) {
-        $table->id();
+    Schema::create('booking_services', function (Blueprint $table) {
+        $table->id(); // <- must be here
         $table->string('name');
-        $table->string('preview_image')->nullable();
+        $table->string('price');
+        $table->string('type');
+        $table->date('date');
+        $table->time('time');
         $table->timestamps();
     });
 }
-
 
 
     /**
@@ -29,6 +32,6 @@ public function up()
      */
     public function down()
     {
-        Schema::dropIfExists('albums');
+        Schema::dropIfExists('booking_services');
     }
 };

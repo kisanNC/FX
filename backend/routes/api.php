@@ -33,3 +33,12 @@ Route::middleware('auth:sanctum')->group(function () {
     // 🎥 Video CRUD routes
     Route::apiResource('videos', VideoController::class);
 });
+
+
+//service routes 
+use App\Http\Controllers\BookingServiceController;
+
+Route::get('/services', [BookingServiceController::class, 'index']);
+Route::post('/services', [BookingServiceController::class, 'store']);
+Route::put('/services/{bookingService}', [BookingServiceController::class, 'update']);
+Route::delete('/services/{bookingService}', [BookingServiceController::class, 'destroy']);
