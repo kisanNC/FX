@@ -5,9 +5,10 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class ContactForm extends Model
+class Contact extends Model
 {
     use HasFactory;
-    protected $fillable = ['name', 'email', 'message'];
+    protected $fillable = ['name', 'type', 'description', 'status'];
+
 
 }

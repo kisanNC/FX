@@ -10,15 +10,13 @@ return new class extends Migration {
      *
      * @return void
      */
-    // database/migrations/xxxx_xx_xx_create_contact_forms_table.php
-
     public function up()
     {
-        Schema::create('contact_forms', function (Blueprint $table) {
+        Schema::create('contacts', function (Blueprint $table) {
             $table->id();
             $table->string('name');
-            $table->string('email');
-            $table->text('message')->nullable();
+            $table->string('type');
+            $table->text('description');
             $table->timestamps();
         });
     }
@@ -31,6 +29,6 @@ return new class extends Migration {
      */
     public function down()
     {
-        Schema::dropIfExists('contact_forms');
+        Schema::dropIfExists('contacts');
     }
 };
