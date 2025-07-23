@@ -1,0 +1,15 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+*{
+    font-family: sans-serif;
+}
+/* Hide scrollbars globally (but keep scroll functionality) */
+::-webkit-scrollbar {
+  display: none;
+}
+
+html {
+  scrollbar-width: none; 
+  -ms-overflow-style: none;
+}
