@@ -1,7 +1,9 @@
+// BookingForm.jsx
 import React, { useState, useEffect, useCallback } from "react";
 import { useDropzone } from "react-dropzone";
 import { CalendarDays, AlarmClock, Upload } from "lucide-react";
 import { toast } from "react-hot-toast";
+import { createService, updateService } from "../../api/api"; // Adjust the path
 
 export default function BookingForm({ onClose, onSubmit, initialData }) {
   const [changebutton, setChangebutton] = useState(false);
@@ -11,53 +13,75 @@ export default function BookingForm({ onClose, onSubmit, initialData }) {
     type: "",
     date: "",
     time: "",
-    image: null,
   });
+  const [imageFile, setImageFile] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
 
   useEffect(() => {
     if (initialData) {
-      setForm(initialData);
+      setForm({
+        name: initialData.name || "",
+        price: initialData.price || "",
+        type: initialData.type || "",
+        date: initialData.date || "",
+        time: initialData.time || "",
+      });
       setChangebutton(true);
+      if (initialData.images && initialData.images.length > 0) {
+        setImagePreview(`http://localhost:8000/storage/${initialData.images[0].image_path}`);
+      }
     }
   }, [initialData]);
 
   const onDrop = useCallback((acceptedFiles) => {
     if (acceptedFiles && acceptedFiles.length > 0) {
       const file = acceptedFiles[0];
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setForm((prev) => ({ ...prev, image: reader.result }));
-      };
-      reader.readAsDataURL(file);
+      setImageFile(file);
+      setImagePreview(URL.createObjectURL(file));
     }
   }, []);
 
   const { getRootProps, getInputProps } = useDropzone({
     onDrop,
     accept: { "image/*": [] },
+    
   });
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-const handleSubmit = (e) => {
-  e.preventDefault();
-  const { name, price, type, date, time, image } = form;
-  if (!name || !price || !type || !date || !time || !image) {
-    toast.error("Please fill all fields and upload an image");
-    return;
-  }
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    const { name, price, type, date, time } = form;
 
-  if (changebutton) {
-    toast.success("Booking updated successfully");
-  } else {
-    toast.success("Booking saved successfully");
-  }
+    if (!name || !price || !type || !date || !time || !imagePreview) {
+      toast.error("Please fill all fields and upload an image");
+      return;
+    }
 
-  onSubmit(form);
-};
+    const formData = new FormData();
+    formData.append("name", name);
+    formData.append("price", price);
+    formData.append("type", type);
+    formData.append("date", date);
+    formData.append("time", time);
+    if (imageFile) formData.append("images[]", imageFile);
 
+    try {
+      if (changebutton && initialData?.id) {
+        formData.append("_method", "PUT");
+        // await updateService(initialData.id, formData);
+        toast.success("Booking updated successfully");
+      } else {
+        await createService(formData);
+        toast.success("Booking saved successfully");
+      }
+      onSubmit();
+    } catch (error) {
+      toast.error(error.message || "Something went wrong");
+    }
+  };
 
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 z-50">
@@ -76,18 +100,19 @@ const handleSubmit = (e) => {
             className="flex flex-col items-center border-2 border-dashed border-orange-300 p-4 mb-4 rounded-xl text-center cursor-pointer relative"
           >
             <input {...getInputProps()} />
-            {form.image ? (
+            {imagePreview ? (
               <>
                 <img
-                  src={form.image}
+                  src={imagePreview}
                   alt="Preview"
                   className="w-full h-32 object-cover rounded"
                 />
                 <button
                   type="button"
                   onClick={(e) => {
-                    e.stopPropagation(); // Prevent triggering upload dialog
-                    setForm((prev) => ({ ...prev, image: null }));
+                    e.stopPropagation();
+                    setImageFile(null);
+                    setImagePreview(null);
                   }}
                   className="absolute top-2 right-2 bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center hover:bg-red-700"
                   aria-label="Remove image"
@@ -99,122 +124,51 @@ const handleSubmit = (e) => {
               <>
                 <Upload className="w-6 h-6 text-orange-500 mb-2" />
                 <p className="text-sm text-orange-500 font-medium">
-                  <span className="font-semibold cursor-pointer">
-                    Click to upload
-                  </span>{" "}
-                  or drag and drop
+                  <span className="font-semibold cursor-pointer">Click to upload</span> or drag and drop
                 </p>
-                <p className="text-xs text-gray-400">
-                  JPG, JPEG, PNG less than 1MB
-                </p>
+                <p className="text-xs text-gray-400">JPG, JPEG, PNG less than 1MB</p>
               </>
             )}
           </div>
 
-          {/* Name */}
-          <label
-            htmlFor="name"
-            className="block mb-1 font-semibold text-gray-700"
-          >
-            Name
-          </label>
-          <input
-            id="name"
-            name="name"
-            value={form.name}
-            onChange={handleChange}
-            className="w-full p-2 border rounded mb-4"
-            placeholder="Enter name"
-          />
+          {/* Form Fields */}
+          <label htmlFor="name" className="block mb-1 font-semibold text-gray-700">Name</label>
+          <input id="name" name="name" value={form.name} onChange={handleChange} className="w-full p-2 border rounded mb-4" placeholder="Enter name" />
 
-          {/* Price */}
-          <label
-            htmlFor="price"
-            className="block mb-1 font-semibold text-gray-700"
-          >
-            Price
-          </label>
-          <input
-            id="price"
-            name="price"
-            value={form.price}
-            onChange={handleChange}
-            className="w-full p-2 border rounded mb-4"
-            placeholder="Enter price"
-          />
+          <label htmlFor="price" className="block mb-1 font-semibold text-gray-700">Price</label>
+          <input id="price" name="price" value={form.price} onChange={handleChange} className="w-full p-2 border rounded mb-4" placeholder="Enter price" />
 
-          {/* Type */}
-          <label
-            htmlFor="type"
-            className="block mb-1 font-semibold text-gray-700"
-          >
-            Service Type
-          </label>
-          <select
-            id="type"
-            name="type"
-            value={form.type}
-            onChange={handleChange}
-            className="w-full p-2 border rounded mb-4"
-          >
-            <option value="" disabled>
-              Select service type
-            </option>
+          <label htmlFor="type" className="block mb-1 font-semibold text-gray-700">Service Type</label>
+          <select id="type" name="type" value={form.type} onChange={handleChange} className="w-full p-2 border rounded mb-4">
+            <option value="" disabled>Select service type</option>
             <option value="Vehicle">Vehicle</option>
             <option value="Makeup">Makeup</option>
             <option value="Camera">Camera</option>
           </select>
 
-          {/* Date and Time */}
           <div className="flex justify-center gap-4 mb-4">
             <div className="flex flex-col">
-              <label
-                htmlFor="date"
-                className="mb-1 font-semibold text-gray-700 flex items-center gap-2"
-              >
+              <label htmlFor="date" className="mb-1 font-semibold text-gray-700 flex items-center gap-2">
                 <CalendarDays className="w-5 h-5" /> Date
               </label>
-              <input
-                id="date"
-                type="date"
-                name="date"
-                value={form.date}
-                onChange={handleChange}
-                className="p-2 border rounded"
-              />
+              <input id="date" type="date" name="date" value={form.date} onChange={handleChange} className="p-2 border rounded" />
             </div>
             <div className="flex flex-col">
-              <label
-                htmlFor="time"
-                className="mb-1 font-semibold text-gray-700 flex items-center gap-2"
-              >
+              <label htmlFor="time" className="mb-1 font-semibold text-gray-700 flex items-center gap-2">
                 <AlarmClock className="w-5 h-5" /> Time
               </label>
-              <input
-                id="time"
-                type="time"
-                name="time"
-                value={form.time}
-                onChange={handleChange}
-                className="p-2 border rounded"
-              />
+              <input id="time" type="time" name="time" value={form.time} onChange={handleChange} className="p-2 border rounded" />
             </div>
           </div>
 
-          {/* Buttons */}
           <div className="flex justify-between mt-4">
             <button
               type="button"
-              onClick={() =>
-                setForm({
-                  name: "",
-                  price: "",
-                  type: "",
-                  date: "",
-                  time: "",
-                  image: null,
-                })
-              }
+              onClick={() => {
+                setForm({ name: "", price: "", type: "", date: "", time: "" });
+                setImageFile(null);
+                setImagePreview(null);
+              }}
               className="px-4 py-2 bg-gray-200 rounded"
             >
               Clear

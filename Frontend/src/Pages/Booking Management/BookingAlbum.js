@@ -1,3 +1,4 @@
+// BookingAlbum.jsx
 import React, { useState, useEffect, useRef } from "react";
 import BookingCard from "./BookingCard.js";
 import BookingForm from "./BookingForm.js";
@@ -6,6 +7,7 @@ import { toast } from "react-hot-toast";
 import DeleteConfirmModal from "../../utils/DeleteConfirmModal.js";
 import HemetData from "../../utils/HelmetData.jsx";
 import { Bell } from "lucide-react";
+import { getServices, deleteService } from "../../api/api";
 
 export default function BookingAlbum() {
   const [showForm, setShowForm] = useState(false);
@@ -15,55 +17,23 @@ export default function BookingAlbum() {
   const [unreadCount, setUnreadCount] = useState(3);
   const [showNotifications, setShowNotifications] = useState(false);
   const notificationRef = useRef(null);
+  const [bookings, setBookings] = useState([]);
 
-  const [bookings, setBookings] = useState([
-    {
-      name: "Arun Kumar",
-      price: "12000",
-      type: "Camera",
-      date: "2025-07-01",
-      time: "10:00",
-
-      image:
-        "https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=400&q=80",
-    },
-    {
-      name: "Priya S",
-      price: "8000",
-      type: "Makeup",
-      date: "2025-07-10",
-      time: "18:30",
-      image:
-        "https://images.unsplash.com/photo-1519125323398-675f0ddb6308?auto=format&fit=crop&w=400&q=80",
-    },
-    {
-      name: "Arun Kumar",
-      price: "12000",
-      type: "Makeup",
-      date: "2025-07-01",
-      time: "10:00",
-      image:
-        "https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=400&q=80",
-    },
-    {
-      name: "Arunk Kumar",
-      price: "12000",
-      type: "Vehicle",
-      date: "2025-07-01",
-      time: "10:00",
-      image:
-        "https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=400&q=80",
-    },
-  ]);
-
-  const handleAddOrEditBooking = (data) => {
-    if (editingBooking) {
-      setBookings((prev) =>
-        prev.map((b) => (b === editingBooking ? { ...b, ...data } : b))
-      );
-    } else {
-      setBookings([data, ...bookings]);
+  const fetchBookings = async () => {
+    try {
+      const data = await getServices();
+      setBookings(data);
+    } catch (error) {
+      toast.error("Failed to fetch bookings");
     }
+  };
+
+  useEffect(() => {
+    fetchBookings();
+  }, []);
+
+  const handleAddOrEditBooking = async () => {
+    await fetchBookings();
     setShowForm(false);
     setEditingBooking(null);
   };
@@ -73,9 +43,16 @@ export default function BookingAlbum() {
     setShowForm(true);
   };
 
-  const handleDelete = (bookingToDelete) => {
-    setBookings((prev) => prev.filter((b) => b !== bookingToDelete));
-    toast.success("Booking deleted successfully");
+  const handleDelete = async (bookingToDelete) => {
+    try {
+      if (bookingToDelete?.id) {
+        await deleteService(bookingToDelete.id);
+      }
+      await fetchBookings();
+      toast.success("Booking deleted successfully");
+    } catch (error) {
+      toast.error("Failed to delete booking");
+    }
   };
 
   const handleCloseForm = () => {
@@ -110,19 +87,8 @@ export default function BookingAlbum() {
             onClick={() => setShowFilter(!showFilter)}
           >
             <div className="bg-orange-100 rounded-full p-3">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="w-5 h-5 text-orange-500"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M17 8h2a2 2 0 012 2v9l-4-2H7a2 2 0 01-2-2V8a2 2 0 012-2h2"
-                />
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-orange-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8h2a2 2 0 012 2v9l-4-2H7a2 2 0 01-2-2V8a2 2 0 012-2h2" />
               </svg>
             </div>
             <div>
@@ -141,19 +107,13 @@ export default function BookingAlbum() {
               }}
               className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded shadow"
             >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="w-5 h-5"
-                viewBox="0 0 24 24"
-                fill="currentColor"
-              >
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12 4a1 1 0 011 1v6h6a1 1 0 110 2h-6v6a1 1 0 11-2 0v-6H5a1 1 0 110-2h6V5a1 1 0 011-1z" />
               </svg>
               <span className="font-semibold">New Advertise</span>
             </button>
           )}
 
-          {/* Notification Bell */}
           <div className="relative inline-block" ref={notificationRef}>
             <button
               onClick={() => {
@@ -195,6 +155,11 @@ export default function BookingAlbum() {
             <BookingCard
               key={idx}
               {...b}
+              image={
+                b.images && b.images.length > 0
+                  ? `http://localhost:8000/storage/${b.images[0].image_path}`
+                  : "/placeholder.jpg"
+              }
               onEdit={() => handleEdit(b)}
               onDelete={() => setDeleteTarget(b)}
             />
@@ -216,9 +181,8 @@ export default function BookingAlbum() {
         open={!!deleteTarget}
         onCancel={() => setDeleteTarget(null)}
         onConfirm={() => {
-          setBookings((prev) => prev.filter((b) => b !== deleteTarget));
+          if (deleteTarget) handleDelete(deleteTarget);
           setDeleteTarget(null);
-          toast.success("Booking deleted successfully");
         }}
         message="Are you sure you want to delete this booking?"
       />
