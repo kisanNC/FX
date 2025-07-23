@@ -1,0 +1,43 @@
+name: Laravel CI/CD
+
+on:
+  push:
+    branches:
+      - main # or your deploy branch
+
+jobs:
+  laravel-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Clone Repository
+        uses: actions/checkout@v3
+
+      - name: 🧰 Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: 8.2
+          extensions: mbstring, bcmath, intl, pdo, openssl, tokenizer, xml, curl
+          tools: composer
+
+      - name: 📦 Install Dependencies
+        run: composer install --no-interaction --prefer-dist --optimize-autoloader
+
+      - name: 🧪 Run Tests (if any)
+        run: php artisan test
+
+      - name: 🚀 Deploy via SSH
+        uses: appleboy/ssh-action@v0.1.6
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.SSH_KEY }}
+          port: 22
+          script: |
+            cd /var/www/my-laravel-app   # ✅ Change this to your actual path
+            git pull origin main
+            composer install --no-interaction --prefer-dist --optimize-autoloader
+            php artisan migrate --force
+            php artisan config:cache
+            php artisan route:cache
+            php artisan view:cache
