@@ -8,6 +8,7 @@ use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\BookingController;
 use App\Http\Controllers\WebhookController;
 use App\Http\Controllers\ContactController;
+use App\Http\Controllers\AlbumController;
 
 // ✅ Webhook route (if used)
 Route::post('/webhook', [WebhookController::class, 'handle']);
@@ -36,3 +37,19 @@ Route::middleware('auth:sanctum')->group(function () {
     // 🎥 Video CRUD routes
     Route::apiResource('videos', VideoController::class);
 });
+
+
+//service routes
+use App\Http\Controllers\BookingServiceController;
+
+Route::get('/services', [BookingServiceController::class, 'index']);
+Route::post('/services', [BookingServiceController::class, 'store']);
+Route::put('/services/{bookingService}', [BookingServiceController::class, 'update']);
+Route::delete('/services/{bookingService}', [BookingServiceController::class, 'destroy']);
+
+//new Advertise
+
+Route::post('/albums', [AlbumController::class, 'store']);
+Route::get('/albums', [AlbumController::class, 'index']);
+Route::get('/albums/{id}', [AlbumController::class, 'show']);//show single album
+
