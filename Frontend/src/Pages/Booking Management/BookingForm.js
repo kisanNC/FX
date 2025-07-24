@@ -3,7 +3,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useDropzone } from "react-dropzone";
 import { CalendarDays, AlarmClock, Upload } from "lucide-react";
 import { toast } from "react-hot-toast";
-import { createService, updateService } from "../../api/api"; // Adjust the path
+import { createService, updateService } from "../../api/api";
 
 export default function BookingForm({ onClose, onSubmit, initialData }) {
   const [changebutton, setChangebutton] = useState(false);
@@ -44,7 +44,6 @@ export default function BookingForm({ onClose, onSubmit, initialData }) {
   const { getRootProps, getInputProps } = useDropzone({
     onDrop,
     accept: { "image/*": [] },
-    
   });
 
   const handleChange = (e) => {
@@ -71,7 +70,7 @@ export default function BookingForm({ onClose, onSubmit, initialData }) {
     try {
       if (changebutton && initialData?.id) {
         formData.append("_method", "PUT");
-        // await updateService(initialData.id, formData);
+        await updateService(initialData.id, formData);
         toast.success("Booking updated successfully");
       } else {
         await createService(formData);
