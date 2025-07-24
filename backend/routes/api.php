@@ -17,8 +17,15 @@ Route::post('/webhook', [WebhookController::class, 'handle']);
 Route::apiResource('contacts', ContactController::class);
 Route::put('/contacts/{id}/status', [ContactController::class, 'updateStatus']);
 
-// ✅ Public route for user registration
+//
+//
+//
+// Public route for user registration
 Route::post('/register', [UserController::class, 'store']);
+Route::post('/login', [UserController::class, 'login']);
+Route::middleware('auth:sanctum')->post('/logout', [UserController::class, 'logout']);
+
+
 
 // ✅ Protected routes (require Sanctum token)
 Route::middleware('auth:sanctum')->group(function () {
