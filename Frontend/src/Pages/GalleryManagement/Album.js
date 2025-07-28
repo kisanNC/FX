@@ -1,5 +1,5 @@
 import { useParams } from "react-router-dom";
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useRef } from "react";
 import Skeleton from "react-loading-skeleton";
 import "react-loading-skeleton/dist/skeleton.css";
 import { DragDropContext, Droppable, Draggable } from "react-beautiful-dnd";
@@ -7,6 +7,12 @@ import { Pencil, Trash2 } from "lucide-react";
 import pageToken from "../../config/facebookToken";
 import UploadImageForm from "./UploadImageForm";
 import DeleteConfirmModal from "../../utils/DeleteConfirmModal";
+import {
+  getImagesInAlbum,
+  uploadImageToAlbum,
+  deleteAlbumImage,
+  updateAlbumImage,
+} from "../../api/gallery";
 
 export default function AlbumPage() {
   const { id } = useParams();
@@ -25,29 +31,59 @@ export default function AlbumPage() {
   const [editIndex, setEditIndex] = useState(null);
 
   useEffect(() => {
-    async function fetchAlbumPhotos() {
+    async function fetchAllAlbumPhotos() {
       setLoading(true);
 
       try {
-        const albumRes = await fetch(
+        const cleanId = id.startsWith("backend-") ? id.replace(/^backend-/, "") : id;
+
+        // Fetch Facebook album name & images
+        const fbAlbumRes = await fetch(
           `https://graph.facebook.com/v18.0/${id}?fields=name&access_token=${pageToken}`
         );
-        const albumData = await albumRes.json();
-        setAlbumName(albumData.name);
+        const fbAlbumData = await fbAlbumRes.json();
+        setAlbumName(fbAlbumData.name);
 
-        const photosRes = await fetch(
+        const fbPhotosRes = await fetch(
           `https://graph.facebook.com/v18.0/${id}/photos?fields=images&access_token=${pageToken}`
         );
-        const photoData = await photosRes.json();
-        setPhotos(photoData.data || []);
+        const fbPhotoData = await fbPhotosRes.json();
+        const fbPhotos = fbPhotoData.data || [];
+
+        // Fetch backend images with clean ID
+        let backendPhotos = [];
+        try {
+          const backendRes = await getImagesInAlbum(cleanId);
+          backendPhotos = backendRes.data.images.map((img) => ({
+            id: img.id,
+            preview: `http://localhost:8000/storage/${img.image_path}`,
+            isFacebook: false,
+          }));
+        } catch (e) {
+          console.warn("No backend images or failed to fetch backend images", e);
+        }
+
+        // Combine photos
+        const combinedPhotos = [
+          ...fbPhotos.map((p) => ({
+            id: p.id,
+            preview: p.images?.[0]?.source,
+            isFacebook: true,
+          })),
+          ...backendPhotos,
+        ];
+
+        setPhotos(combinedPhotos);
       } catch (err) {
         console.error("Error fetching album photos", err);
+        setPhotos([]);
+        setAlbumName("Album");
       }
 
       setLoading(false);
     }
 
-    fetchAlbumPhotos();
+    fetchAllAlbumPhotos();
   }, [id]);
 
   const handleDragEnd = (result) => {
@@ -58,8 +94,33 @@ export default function AlbumPage() {
     setPhotos(items);
   };
 
-  const handleImagesUploaded = (newImages) => {
-    setPhotos((prev) => [...prev, ...newImages]);
+  const handleImagesUploaded = async (newImages) => {
+    const formData = new FormData();
+
+    newImages.forEach((fileObj) => {
+      const file = fileObj.file || fileObj;
+      formData.append("images[]", file);
+    });
+
+    try {
+      const cleanId = id.replace(/^backend-/, "");
+
+      await uploadImageToAlbum(cleanId, formData);
+
+      setPhotos((prev) => [
+        ...prev,
+        ...newImages.map((img) => ({
+          id: img.id,
+          preview: img.preview || URL.createObjectURL(img.file || img),
+          file: img.file || img,
+          isFacebook: false,
+        })),
+      ]);
+
+      setShowUploadModal(false);
+    } catch (error) {
+      console.error("Failed to upload images", error);
+    }
   };
 
   // Delete confirmation modal handlers
@@ -68,10 +129,23 @@ export default function AlbumPage() {
     setShowDeleteModal(true);
   };
 
-  const handleDeleteConfirmed = () => {
+  const handleDeleteConfirmed = async () => {
     if (deleteIndex !== null) {
+      const image = photos[deleteIndex];
+
+      if (!image.isFacebook && image.id) {
+        try {
+          await deleteAlbumImage(image.id);
+        } catch (err) {
+          console.error("Error deleting backend image:", err);
+        }
+      } else {
+        alert("Facebook images cannot be deleted from here.");
+      }
+
       setPhotos((prev) => prev.filter((_, i) => i !== deleteIndex));
     }
+
     setShowDeleteModal(false);
     setDeleteIndex(null);
   };
@@ -90,22 +164,51 @@ export default function AlbumPage() {
     }
   };
 
-  // When file selected, replace the photo immediately
-  const handleEditFileChange = (e) => {
-    const file = e.target.files[0];
-    if (file && editIndex !== null) {
-      const preview = URL.createObjectURL(file);
-      setPhotos((prev) => {
-        const updated = [...prev];
-        updated[editIndex] = {
-          id: crypto.randomUUID(),
-          preview,
-          file,
-        };
-        return updated;
-      });
+  // When file selected, replace the photo immediately & update backend
+ const handleEditFileChange = async (e) => {
+  const file = e.target.files[0];
+  console.log("Selected file for update:", file);
+
+  if (file && editIndex !== null) {
+    const preview = URL.createObjectURL(file);
+    setPhotos((prev) => {
+      const updated = [...prev];
+      updated[editIndex] = {
+        ...updated[editIndex],
+        preview,
+        file,
+      };
+      return updated;
+    });
+
+    const photo = photos[editIndex];
+    console.log("Photo to update:", photo);
+
+    if (photo.id && !photo.isFacebook) {
+      try {
+        const formData = new FormData();
+        formData.append("image", file);
+        console.log("Sending formData keys:", [...formData.keys()]); // Should print ["image"]
+
+        const res = await updateAlbumImage(photo.id, formData);
+        console.log("Update response:", res.data);
+
+        const newPreviewUrl = `http://localhost:8000/storage/${res.data.image_path}?t=${Date.now()}`;
+        setPhotos((prev) => {
+          const updated = [...prev];
+          updated[editIndex] = {
+            ...updated[editIndex],
+            preview: newPreviewUrl,
+            file: null,
+          };
+          return updated;
+        });
+      } catch (err) {
+        console.error("Failed to update backend image:", err.response?.data || err);
+      }
     }
-  };
+  }
+};
 
   if (loading) {
     return (
@@ -176,31 +279,32 @@ export default function AlbumPage() {
                         {...provided.dragHandleProps}
                       >
                         <img
-                          src={photo.images?.[0]?.source || photo.preview}
+                          src={photo.preview}
                           alt={`Photo ${idx + 1}`}
                           className="h-[281px] object-cover rounded-md w-full"
                         />
 
                         {/* Buttons on hover */}
-                        <div className="absolute top-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button
-                            onClick={() => confirmDeleteImage(idx)}
-                            className="bg-white  rounded-full p-1 shadow "
-                            aria-label="Delete Image"
-                            type="button"
-                          >
-                            <Trash2 size={20}  className="text-orange-400"/>
-                          </button>
-                          <button
-                            onClick={() => openEditFilePicker(idx)}
-                            className="bg-white  rounded-full p-1 shadow "
-                            aria-label="Edit Image"
-                            type="button"
-                          >
-                            <Pencil size={20}  className="text-orange-400"/>
-                          </button>
-                         
-                        </div>
+                        {!photo.isFacebook && (
+                          <div className="absolute top-2 right-2 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button
+                              onClick={() => confirmDeleteImage(idx)}
+                              className="bg-white rounded-full p-1 shadow"
+                              aria-label="Delete Image"
+                              type="button"
+                            >
+                              <Trash2 size={20} className="text-orange-400" />
+                            </button>
+                            <button
+                              onClick={() => openEditFilePicker(idx)}
+                              className="bg-white rounded-full p-1 shadow"
+                              aria-label="Edit Image"
+                              type="button"
+                            >
+                              <Pencil size={20} className="text-orange-400" />
+                            </button>
+                          </div>
+                        )}
                       </div>
                     )}
                   </Draggable>

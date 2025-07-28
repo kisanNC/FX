@@ -51,9 +51,13 @@ Route::delete('/services/{bookingService}', [BookingServiceController::class, 'd
 
 Route::post('/albums', [AlbumController::class, 'store']);
 Route::get('/albums', [AlbumController::class, 'index']);
+Route::get('/albums/images', [AlbumController::class, 'getAllAlbumImages']);
+
 Route::get('/albums/{id}', [AlbumController::class, 'show']);//show single album
 Route::delete('/albums/{id}', [AlbumController::class, 'destroy']);                
 Route::put('/albums/{id}', [AlbumController::class, 'update']); // Update album info (name, preview image, add images)
 Route::post('/albums/{id}/upload-image', [AlbumController::class, 'uploadToAlbum']);
+Route::get('/albums/{id}/image', [AlbumController::class, 'getImageInalbum']);
+
 Route::put('/albums/images/{imageId}', [AlbumController::class, 'updateImage']);  // Update single image in album (replace image file)
 Route::delete('/albums/images/{imageId}', [AlbumController::class, 'destroyImage']);  // Delete single image in album

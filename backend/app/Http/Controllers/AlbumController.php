@@ -16,7 +16,7 @@ class AlbumController extends Controller
         $request->validate([
             'name' => 'required|string|max:255',
             'images' => 'required|array|min:1',
-            'images.*' => 'image|mimes:jpeg,png,jpg,gif|max:2048',
+            'images.*' => 'image|mimes:jpeg,png,jpg,gif|max:20480',
         ]);
 
         $images = $request->file('images');
@@ -53,7 +53,7 @@ class AlbumController extends Controller
     {
         $request->validate([
             'images' => 'required|array|min:1',
-            'images.*' => 'image|mimes:jpeg,png,jpg,gif|max:2048',
+            'images.*' => 'image|mimes:jpeg,png,jpg,gif|max:20480',
         ]);
 
         $album = NewAdvertise::findOrFail($id);
@@ -69,6 +69,47 @@ class AlbumController extends Controller
 
         return response()->json(['message' => 'Images uploaded to album']);
     }
+
+    public function getAllAlbumImages()
+{
+    // Assuming you have Album and Image models with proper relationships
+
+    // Option 1: Get all images eager loaded with albums (if you want album info with images)
+    // $albums = Album::with('images')->get();
+    // $allImages = $albums->flatMap->images; // flatten all images from albums
+
+    // Option 2: Directly get all images (recommended if you just want images)
+    $allImages = AlbumImage::all();
+
+    // Return JSON response
+    return response()->json([
+        'status' => 'success',
+        'data' => $allImages,
+    ]);
+}
+
+public function getImageInalbum($id)
+{
+    try {
+        // Check album exists
+        $album = NewAdvertise::findOrFail($id);
+
+        // Get all images for this album
+        $images = AlbumImage::where('album_id', $id)
+                    ->select('id', 'image_path')
+                    ->get();
+
+        return response()->json([
+            'album_id' => $id,
+            'images' => $images
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'error' => 'Failed to fetch images',
+            'message' => $e->getMessage()
+        ], 500);
+    }
+}
 
     public function index()
     {
@@ -131,9 +172,11 @@ public function update(Request $request, $id)
 
         $request->validate([
             'name' => 'sometimes|string|max:255',
-            'preview_image' => 'sometimes|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'preview_image' => 'sometimes|image|mimes:jpeg,png,jpg,gif|max:20480',
             'images' => 'sometimes|array',
-            'images.*' => 'image|mimes:jpeg,png,jpg,gif|max:2048',
+            'images.*' => 'image|mimes:jpeg,png,jpg,gif|max:20480',
+            'removed_images' => 'sometimes|array',
+            'removed_images.*' => 'integer|exists:album_images,id',
         ]);
 
         // Update name if given
@@ -143,7 +186,6 @@ public function update(Request $request, $id)
 
         // Update preview image if given
         if ($request->hasFile('preview_image')) {
-            // Delete old preview image file
             Storage::disk('public')->delete($album->preview_image);
 
             $previewPath = $request->file('preview_image')->store('album_images', 'public');
@@ -163,11 +205,23 @@ public function update(Request $request, $id)
             }
         }
 
+        // ** Delete removed images from storage and database **
+        if ($request->has('removed_images')) {
+            foreach ($request->removed_images as $imageId) {
+                $image = AlbumImage::find($imageId);
+                if ($image) {
+                    Storage::disk('public')->delete($image->image_path);
+                    $image->delete();
+                }
+            }
+        }
+
         return response()->json(['message' => 'Album updated successfully']);
     } catch (\Exception $e) {
         return response()->json(['error' => 'Failed to update album', 'message' => $e->getMessage()], 500);
     }
 }
+
 
 public function updateImage(Request $request, $imageId)
 {   Log::info('Files:', $request->allFiles());
@@ -175,7 +229,7 @@ public function updateImage(Request $request, $imageId)
 
     try {
         $request->validate([
-            'image' => 'required|image|mimes:jpeg,png,jpg,gif|max:2048',
+            'image' => 'required|image|mimes:jpeg,png,jpg,gif|max:20480',
         ]);
 
         $imageModel = AlbumImage::findOrFail($imageId);

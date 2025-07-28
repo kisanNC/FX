@@ -19,8 +19,8 @@ async function getAlbumDetails(id) {
 
 export default function AlbumCard({ album, onEdit, onDelete }) {
   const navigate = useNavigate();
-  const [photoCount, setPhotoCount] = useState(0);
-  const [coverPhoto, setCoverPhoto] = useState(album.previewImage);
+const [photoCount] = useState(album.photoCount || 0);
+const [coverPhoto] = useState(album.previewImage);
 
   useEffect(() => {
     async function fetchDetails() {

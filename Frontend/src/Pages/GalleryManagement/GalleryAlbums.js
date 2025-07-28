@@ -9,10 +9,11 @@ import pageToken from "../../config/facebookToken";
 import AddAlbum from "./AlbumForm";
 import AllImagesView from "./ImageView";
 import DeleteConfirmModal from "../../utils/DeleteConfirmModal";
+import { getAllAlbums,deleteAlbum, } from "../../api/gallery"; // Laravel albums
 
-const ITEMS_PER_PAGE = 6;
+const ITEMS_PER_PAGE = 8;
 
-async function getAlbums() {
+async function fetchFacebookAlbums() {
   const res = await fetch(
     `https://graph.facebook.com/v18.0/me/albums?access_token=${pageToken}`
   );
@@ -26,14 +27,47 @@ async function getAlbums() {
       const previewData = await previewRes.json();
       return {
         ...album,
+        id: `fb-${album.id}`, // prevent ID collision
         previewImage: previewData.data?.[0]?.images?.[0]?.source || "",
         allImages:
           previewData.data?.map((img) => img.images?.[0]?.source) || [],
+                photoCount: previewData.data?.length || 0, // ✅ Add this line
+
+        source: "facebook",
       };
     })
   );
 
   return albums;
+}
+
+async function getCombinedAlbums() {
+  const [fbAlbums, backendRes] = await Promise.all([
+    fetchFacebookAlbums(),
+    getAllAlbums(),
+  ]);
+
+const BACKEND_URL = "http://localhost:8000";
+
+const backendAlbums = (backendRes.data || []).map((album) => ({
+  ...album,
+  id: `backend-${album.id}`,
+  previewImage: album.images?.[0]?.image_path
+    ? album.images[0].image_path.startsWith("http")
+      ? album.images[0].image_path
+      : `${BACKEND_URL}/storage/${album.images[0].image_path}`
+    : "",
+  allImages: album.images?.map((img) =>
+    img.image_path.startsWith("http") ? img.image_path : `${BACKEND_URL}/storage/${img.image_path}`
+  ) || [],
+    photoCount: album.images?.length || 0, // ✅ Add this line
+
+  source: "backend",
+}));
+
+
+
+  return [...backendAlbums, ...fbAlbums];
 }
 
 export default function Gallery() {
@@ -47,31 +81,56 @@ export default function Gallery() {
   const [deleteTargetAlbum, setDeleteTargetAlbum] = useState(null);
 
   const handleEditAlbum = (album) => {
+    if (album.source === "facebook") {
+      alert("Editing Facebook albums is not supported.");
+      return;
+    }
     setEditingAlbum(album);
     setShowAddAlbum(true);
   };
 
   const handleDeleteAlbum = (album) => {
+    if (album.source === "facebook") {
+      alert("Deleting Facebook albums is not allowed.");
+      return;
+    }
     setDeleteTargetAlbum(album);
   };
 
-  const confirmDeleteAlbum = () => {
-    if (deleteTargetAlbum) {
-      setAlbums((prev) => prev.filter((a) => a.id !== deleteTargetAlbum.id));
-      setDeleteTargetAlbum(null);
+ const confirmDeleteAlbum = async () => {
+  if (!deleteTargetAlbum) return;
+
+  try {
+    // Call API only for backend albums, Facebook albums cannot be deleted
+    if (deleteTargetAlbum.source === "backend") {
+      await deleteAlbum(deleteTargetAlbum.id.replace("backend-", ""));
     }
-  };
+
+    // Refresh albums after deletion
+    const allAlbums = await getCombinedAlbums();
+    setAlbums(allAlbums);
+    setLoading(true);
+    setLoading(false);
+
+    setDeleteTargetAlbum(null);
+  } catch (error) {
+    setLoading(false);
+    alert("Failed to delete album.");
+    console.error("Delete album error:", error);
+  }
+};
+
 
   const cancelDeleteAlbum = () => setDeleteTargetAlbum(null);
 
   useEffect(() => {
-    async function fetchAlbums() {
+    async function loadAlbums() {
       setLoading(true);
-      const allAlbums = await getAlbums();
+      const allAlbums = await getCombinedAlbums();
       setAlbums(allAlbums);
       setLoading(false);
     }
-    fetchAlbums();
+    loadAlbums();
   }, []);
 
   const pageCount = Math.ceil(albums.length / ITEMS_PER_PAGE);
@@ -85,23 +144,20 @@ export default function Gallery() {
     setStartIndex(nextIndex);
     setShowAddAlbum(true);
   };
-
-  const handleAddAlbum = (newAlbum) => {
-    setAlbums((prev) => {
-      const existingIndex = prev.findIndex((a) => a.id === newAlbum.id);
-      if (existingIndex !== -1) {
-        const updated = [...prev];
-        updated[existingIndex] = newAlbum;
-        return updated;
-      } else {
-        return [newAlbum, ...prev];
-      }
-    });
-
-    setShowAddAlbum(false);
+const handleAddAlbum = async () => {
+  setLoading(true);
+  try {
+    const allAlbums = await getCombinedAlbums();  // reload all albums fresh
+    setAlbums(allAlbums);
     setCurrentPage(0);
     setEditingAlbum(null);
-  };
+    setShowAddAlbum(false);
+  } catch (error) {
+    console.error("Failed to refresh albums after add/update:", error);
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <>
@@ -159,7 +215,7 @@ export default function Gallery() {
             {viewMode === "albums" ? (
               <div className="flex flex-wrap justify-start gap-4">
                 {loading ? (
-                  Array(6)
+                  Array(8)
                     .fill(0)
                     .map((_, i) => (
                       <div
