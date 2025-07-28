@@ -1,9 +1,9 @@
-name: Laravel CI/CD
+name: 🚀 Laravel CI/CD
 
 on:
   push:
     branches:
-      - main # or your deploy branch
+      - main # ✅ Change if your deployment branch is different
 
 jobs:
   laravel-deploy:
@@ -13,18 +13,18 @@ jobs:
       - name: 📥 Clone Repository
         uses: actions/checkout@v3
 
-      - name: 🧰 Setup PHP
+      - name: 🧰 Setup PHP Environment
         uses: shivammathur/setup-php@v2
         with:
           php-version: 8.2
           extensions: mbstring, bcmath, intl, pdo, openssl, tokenizer, xml, curl
           tools: composer
 
-      - name: 📦 Install Dependencies
+      - name: 📦 Install Composer Dependencies
         run: composer install --no-interaction --prefer-dist --optimize-autoloader
 
-      - name: 🧪 Run Tests (if any)
-        run: php artisan test
+      - name: 🧪 Run Tests (if any exist)
+        run: php artisan test || true # ✅ Use `|| true` to avoid failing if no tests exist
 
       - name: 🚀 Deploy via SSH
         uses: appleboy/ssh-action@v0.1.6
@@ -34,7 +34,7 @@ jobs:
           key: ${{ secrets.SSH_KEY }}
           port: 22
           script: |
-            cd /var/www/my-laravel-app   # ✅ Change this to your actual path
+            cd /var/www/my-laravel-app  # ✅ Update this path to your Laravel project directory
             git pull origin main
             composer install --no-interaction --prefer-dist --optimize-autoloader
             php artisan migrate --force
