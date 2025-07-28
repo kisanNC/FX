@@ -3,7 +3,7 @@ name: 🚀 Laravel CI/CD
 on:
   push:
     branches:
-      - main # ✅ Change if your deployment branch is different
+      - main # Change if your deployment branch is different
 
 jobs:
   laravel-deploy:
