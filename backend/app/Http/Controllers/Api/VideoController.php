@@ -18,15 +18,11 @@ class VideoController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'title' => 'required|string',
-            'description' => 'nullable|string',
             'video_url' => 'required|url',
-            'thumbnail_url' => 'required|url',
-            'uploaded_at' => 'required|date',
-            'uploaded_by' => 'required|exists:users,id',
+            'description' => 'nullable|string',
         ]);
 
-        $video = Video::create($request->all());
+        $video = Video::create($request->only('video_url', 'description'));
 
         return response()->json($video, 201);
     }
@@ -40,7 +36,7 @@ class VideoController extends Controller
             return response()->json(['message' => 'Video not found'], 404);
         }
 
-        return $video;
+        return response()->json($video);
     }
 
     // PUT /api/videos/{id}
@@ -53,15 +49,11 @@ class VideoController extends Controller
         }
 
         $request->validate([
-            'title' => 'sometimes|required|string',
-            'description' => 'nullable|string',
             'video_url' => 'sometimes|required|url',
-            'thumbnail_url' => 'sometimes|required|url',
-            'uploaded_at' => 'sometimes|required|date',
-            'uploaded_by' => 'sometimes|required|exists:users,id',
+            'description' => 'nullable|string',
         ]);
 
-        $video->update($request->all());
+        $video->update($request->only('video_url', 'description'));
 
         return response()->json($video);
     }

@@ -19,6 +19,10 @@ Route::put('/contacts/{id}/status', [ContactController::class, 'updateStatus']);
 
 // ✅ Public route for user registration
 Route::post('/register', [UserController::class, 'store']);
+Route::post('/login', [UserController::class, 'login']);
+
+Route::middleware('auth:sanctum')->post('/logout', [UserController::class, 'logout']);
+
 
 // ✅ Protected routes (require Sanctum token)
 Route::middleware('auth:sanctum')->group(function () {
@@ -27,6 +31,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/user', function (Request $request) {
         return $request->user();
     });
+
+    // 🔐 Logout route
+    // Route::post('/logout', [UserController::class, 'logout']);
 
     // 📅 Booking routes
     Route::post('/bookings', [BookingController::class, 'store']);
@@ -54,7 +61,7 @@ Route::get('/albums', [AlbumController::class, 'index']);
 Route::get('/albums/images', [AlbumController::class, 'getAllAlbumImages']);
 
 Route::get('/albums/{id}', [AlbumController::class, 'show']);//show single album
-Route::delete('/albums/{id}', [AlbumController::class, 'destroy']);                
+Route::delete('/albums/{id}', [AlbumController::class, 'destroy']);
 Route::put('/albums/{id}', [AlbumController::class, 'update']); // Update album info (name, preview image, add images)
 Route::post('/albums/{id}/upload-image', [AlbumController::class, 'uploadToAlbum']);
 Route::get('/albums/{id}/image', [AlbumController::class, 'getImageInalbum']);

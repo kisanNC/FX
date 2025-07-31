@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Hash;
 
 class UserController extends Controller
 {
+    // REGISTER (without token)
     public function store(Request $request)
     {
         $request->validate([
@@ -17,18 +18,47 @@ class UserController extends Controller
             'password' => 'required|string|min:6',
         ]);
 
-        $user = User::create([
+        User::create([
             'name' => $request->name,
             'email' => $request->email,
             'password' => Hash::make($request->password),
         ]);
 
-        // 🔐 Create Sanctum token
+        return response()->json([
+            'message' => 'User registered successfully',
+        ], 201);
+    }
+
+    // LOGIN (generate Sanctum token)
+    public function login(Request $request)
+    {
+        $request->validate([
+            'email' => 'required|email',
+            'password' => 'required|string',
+        ]);
+
+        $user = User::where('email', $request->email)->first();
+
+        if (!$user || !Hash::check($request->password, $user->password)) {
+            return response()->json(['message' => 'Invalid email or password'], 401);
+        }
+
         $token = $user->createToken('auth_token')->plainTextToken;
 
         return response()->json([
-            'message' => 'User registered successfully',
+            'message' => 'Login successful',
             'token' => $token,
-        ], 201);
+        ]);
+    }
+
+    // LOGOUT (delete current token)
+    public function logout(Request $request)
+    {
+        $token = $request->user()->currentAccessToken();
+        if ($token && method_exists($token, 'delete')) {
+            $token->delete();
+            return response()->json(['message' => 'Logged out successfully']);
+        }
+        return response()->json(['message' => 'No active token found'], 400);
     }
 }

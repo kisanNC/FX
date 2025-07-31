@@ -13,10 +13,10 @@
     "axios": "^1.11.0",
     "lucide-react": "^0.513.0",
     "or": "^0.2.0",
-    "react": "^19.1.0",
+    "react": "^18.3.1",
     "react-beautiful-dnd": "^13.1.1",
     "react-calendar": "^6.0.0",
-    "react-dom": "^19.1.0",
+    "react-dom": "^18.3.1",
     "react-dropzone": "^14.3.8",
     "react-helmet-async": "^2.0.5",
     "react-hot-toast": "^2.5.2",
@@ -27,6 +27,7 @@
     "sortablejs": "^1.15.6"
   },
   "devDependencies": {
+    "@babel/plugin-transform-react-jsx": "^7.27.1",
     "@eslint/js": "^9.25.0",
     "@types/react": "^19.1.2",
     "@types/react-dom": "^19.1.2",

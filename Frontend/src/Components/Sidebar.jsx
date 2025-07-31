@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import axios from "axios";
 import {
   Menu,
   X,
@@ -40,9 +41,11 @@ const navItems = [
 
 export default function Sidebar() {
   const location = useLocation();
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const sidebarRef = useRef(null);
-    const toggleMenu = () => setOpen(!open);
+
+  const toggleMenu = () => setOpen(!open);
 
   // Close sidebar when clicking outside
   useEffect(() => {
@@ -63,10 +66,31 @@ export default function Sidebar() {
     };
   }, [open]);
 
+  // 🔐 Handle Logout
+  const handleLogout = async () => {
+    try {
+      const token = localStorage.getItem("auth_token");
+      await axios.post(
+        "http://localhost:8000/api/logout",
+        {},
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      localStorage.removeItem("auth_token");
+      navigate("/login"); // Redirect to login page
+    } catch (error) {
+      console.error("Logout failed:", error.response?.data || error.message);
+    }
+  };
+
   return (
     <>
       {/* Mobile Topbar */}
-      <div className="md:hidden p-8  absolute z-50  flex justify-between items-start  ">
+      <div className="md:hidden p-8 absolute z-50 flex justify-between items-start">
         {!open && (
           <button onClick={toggleMenu}>
             <Menu size={24} />
@@ -116,7 +140,7 @@ export default function Sidebar() {
           </nav>
         </div>
 
-        {/* User Detail */}
+        {/* User Detail + Logout */}
         <div className="flex items-center justify-between px-4 py-3 border-t">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-full bg-orange-400 flex items-center justify-center text-white font-bold">
@@ -124,7 +148,12 @@ export default function Sidebar() {
             </div>
             <span className="font-medium text-sm">SKSINTHU</span>
           </div>
-          <LogOut className="text-orange-500" size={20} />
+          <button onClick={handleLogout} title="Logout">
+            <LogOut
+              className="text-orange-500 hover:text-orange-700 cursor-pointer"
+              size={20}
+            />
+          </button>
         </div>
       </div>
     </>
